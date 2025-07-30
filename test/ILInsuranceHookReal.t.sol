@@ -30,16 +30,16 @@ contract ILInsuranceHookRealTest is Test {
     PoolManager poolManager;
     PoolModifyLiquidityTest modifyLiquidityRouter;
     PoolSwapTest swapRouter;
-    
+
     // Test tokens
     Currency currency0;
     Currency currency1;
-    
+
     // Test users
     address user1 = address(0x1);
     address user2 = address(0x2);
     address deployer = address(0x3);
-    
+
     // Pool configuration
     PoolKey key;
     PoolId poolId;
@@ -53,11 +53,9 @@ contract ILInsuranceHookRealTest is Test {
     uint160 constant BEFORE_ADD_LIQUIDITY_FLAG = 1 << 11;
     uint160 constant BEFORE_REMOVE_LIQUIDITY_FLAG = 1 << 9;
     uint160 constant BEFORE_SWAP_FLAG = 1 << 7;
-    
-    uint160 constant REQUIRED_FLAGS = BEFORE_INITIALIZE_FLAG | 
-                                      BEFORE_ADD_LIQUIDITY_FLAG | 
-                                      BEFORE_REMOVE_LIQUIDITY_FLAG | 
-                                      BEFORE_SWAP_FLAG;
+
+    uint160 constant REQUIRED_FLAGS =
+        BEFORE_INITIALIZE_FLAG | BEFORE_ADD_LIQUIDITY_FLAG | BEFORE_REMOVE_LIQUIDITY_FLAG | BEFORE_SWAP_FLAG;
 
     // Events
     event InsurancePayout(PoolId indexed poolId, address indexed provider, uint256 amount);
@@ -66,11 +64,11 @@ contract ILInsuranceHookRealTest is Test {
     function setUp() public {
         // Deploy PoolManager
         poolManager = new PoolManager(deployer);
-        
+
         // Deploy routers
         modifyLiquidityRouter = new PoolModifyLiquidityTest(poolManager);
         swapRouter = new PoolSwapTest(poolManager);
-        
+
         // Mine hook address with correct flags
         HookMiner miner = new HookMiner();
         bytes memory creationCode = abi.encodePacked(
@@ -83,38 +81,29 @@ contract ILInsuranceHookRealTest is Test {
             0, // start salt
             100000 // max iterations
         );
-        
+
         // Deploy the hook with the mined salt
         hook = new ILInsuranceHook{salt: salt}(poolManager, 2, 100);
-        
+
         // Verify deployment worked correctly
         require(address(hook) == hookAddress, "Hook deployed to wrong address");
         uint160 ALL_HOOK_MASK = uint160((1 << 14) - 1);
-        require(
-            (uint160(address(hook)) & ALL_HOOK_MASK) == REQUIRED_FLAGS,
-            "Hook address has incorrect flags"
-        );
-        
+        require((uint160(address(hook)) & ALL_HOOK_MASK) == REQUIRED_FLAGS, "Hook address has incorrect flags");
+
         // Create mock tokens for testing
         currency0 = Currency.wrap(address(new MockERC20("Token0", "TK0")));
         currency1 = Currency.wrap(address(new MockERC20("Token1", "TK1")));
-        
+
         // Ensure currency0 < currency1 for proper ordering
         if (Currency.unwrap(currency0) > Currency.unwrap(currency1)) {
             (currency0, currency1) = (currency1, currency0);
         }
-        
+
         // Set up pool key
-        key = PoolKey({
-            currency0: currency0,
-            currency1: currency1,
-            fee: FEE,
-            tickSpacing: TICK_SPACING,
-            hooks: hook
-        });
-        
+        key = PoolKey({currency0: currency0, currency1: currency1, fee: FEE, tickSpacing: TICK_SPACING, hooks: hook});
+
         poolId = key.toId();
-        
+
         // Fund test accounts and approve routers
         deal(Currency.unwrap(currency0), address(this), 1000 ether);
         deal(Currency.unwrap(currency1), address(this), 1000 ether);
@@ -122,18 +111,18 @@ contract ILInsuranceHookRealTest is Test {
         deal(Currency.unwrap(currency1), user1, 1000 ether);
         deal(Currency.unwrap(currency0), user2, 1000 ether);
         deal(Currency.unwrap(currency1), user2, 1000 ether);
-        
+
         // Approve routers
         IERC20(Currency.unwrap(currency0)).approve(address(modifyLiquidityRouter), type(uint256).max);
         IERC20(Currency.unwrap(currency1)).approve(address(modifyLiquidityRouter), type(uint256).max);
         IERC20(Currency.unwrap(currency0)).approve(address(swapRouter), type(uint256).max);
         IERC20(Currency.unwrap(currency1)).approve(address(swapRouter), type(uint256).max);
-        
+
         vm.startPrank(user1);
         IERC20(Currency.unwrap(currency0)).approve(address(modifyLiquidityRouter), type(uint256).max);
         IERC20(Currency.unwrap(currency1)).approve(address(modifyLiquidityRouter), type(uint256).max);
         vm.stopPrank();
-        
+
         // Initialize the pool (this automatically registers it with the hook)
         vm.startPrank(deployer);
         poolManager.initialize(key, SQRT_PRICE_1_1);
@@ -152,17 +141,17 @@ contract ILInsuranceHookRealTest is Test {
             }),
             ZERO_BYTES
         );
-        
+
         // Check that position was recorded correctly
         // Note: Hook tracks positions by msg.sender (router contract), not the end user
-        (uint160 initialSqrtPrice, uint256 initialAmount0, uint256 initialAmount1, uint256 timestamp, bool isActive) = 
+        (uint160 initialSqrtPrice, uint256 initialAmount0, uint256 initialAmount1, uint256 timestamp, bool isActive) =
             hook.lpPositions(poolId, address(modifyLiquidityRouter));
-        
+
         assertGt(initialSqrtPrice, 0, "Initial sqrt price should be recorded");
         assertEq(initialSqrtPrice, SQRT_PRICE_1_1, "Should record correct initial price");
         assertGt(timestamp, 0, "Timestamp should be recorded");
         assertTrue(isActive, "Position should be active");
-        
+
         console.log("Initial position recorded:");
         console.log("  sqrt price:", initialSqrtPrice);
         console.log("  amount0:", initialAmount0);
@@ -182,10 +171,10 @@ contract ILInsuranceHookRealTest is Test {
             }),
             ZERO_BYTES
         );
-        
+
         // Record initial state
-        (uint160 initialSqrtPrice, , , , ) = hook.lpPositions(poolId, address(modifyLiquidityRouter));
-        
+        (uint160 initialSqrtPrice,,,,) = hook.lpPositions(poolId, address(modifyLiquidityRouter));
+
         // Perform a large swap to change the price significantly
         // This should create impermanent loss
         swapRouter.swap(
@@ -195,21 +184,18 @@ contract ILInsuranceHookRealTest is Test {
                 amountSpecified: -100e18, // Exact output swap
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
             }),
-            PoolSwapTest.TestSettings({
-                takeClaims: false,
-                settleUsingBurn: false
-            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
             ZERO_BYTES
         );
-        
+
         // Check that price has changed
         (uint160 newSqrtPrice,,,) = StateLibrary.getSlot0(poolManager, poolId);
         assertNotEq(newSqrtPrice, initialSqrtPrice, "Price should have changed after swap");
-        
+
         console.log("Price change:");
         console.log("  Initial sqrt price:", initialSqrtPrice);
         console.log("  New sqrt price:", newSqrtPrice);
-        
+
         // Remove liquidity to trigger IL calculation
         modifyLiquidityRouter.modifyLiquidity(
             key,
@@ -221,9 +207,9 @@ contract ILInsuranceHookRealTest is Test {
             }),
             ZERO_BYTES
         );
-        
+
         // Position should still be active (partial removal)
-        (, , , , bool isActive) = hook.lpPositions(poolId, address(modifyLiquidityRouter));
+        (,,,, bool isActive) = hook.lpPositions(poolId, address(modifyLiquidityRouter));
         assertTrue(isActive, "Position should still be active after partial removal");
     }
 
@@ -231,26 +217,21 @@ contract ILInsuranceHookRealTest is Test {
         // Test the IL calculation math directly
         uint160 initialSqrtPrice = SQRT_PRICE_1_1; // Price = 1
         uint160 finalSqrtPrice = SQRT_PRICE_1_1 * 2; // Price = 4 (2x sqrt price = 4x price)
-        
+
         uint256 initialAmount0 = 1000e18;
         uint256 initialAmount1 = 1000e18;
-        uint256 finalAmount0 = 500e18;  // Less token0 due to price increase
+        uint256 finalAmount0 = 500e18; // Less token0 due to price increase
         uint256 finalAmount1 = 2000e18; // More token1 due to price increase
-        
+
         uint256 ilBps = ILMath.calculateFullIL(
-            initialSqrtPrice,
-            finalSqrtPrice,
-            initialAmount0,
-            initialAmount1,
-            finalAmount0,
-            finalAmount1
+            initialSqrtPrice, finalSqrtPrice, initialAmount0, initialAmount1, finalAmount0, finalAmount1
         );
-        
+
         console.log("Direct IL calculation:");
         console.log("  Initial sqrt price:", initialSqrtPrice);
         console.log("  Final sqrt price:", finalSqrtPrice);
         console.log("  IL in basis points:", ilBps);
-        
+
         // With a 4x price increase, we expect significant IL
         assertGt(ilBps, 0, "Should have positive IL with price change");
     }
@@ -259,15 +240,15 @@ contract ILInsuranceHookRealTest is Test {
         uint256 ilBps = 500; // 5% IL
         uint256 thresholdBps = 100; // 1% threshold
         uint256 positionValue = 1000e18;
-        
+
         // Calculate expected compensation
         uint256 excessIL = ilBps - thresholdBps; // 400 bps = 4%
         uint256 expectedCompensation = (positionValue * excessIL) / 10000; // 4% of position
-        
+
         // Test the internal calculation (we'll need to make this public for testing)
         // For now, just verify the math
         assertEq(expectedCompensation, 40e18, "Should compensate 4% of position value");
-        
+
         console.log("Compensation calculation:");
         console.log("  IL:", ilBps, "bps");
         console.log("  Threshold:", thresholdBps, "bps");
@@ -288,9 +269,9 @@ contract ILInsuranceHookRealTest is Test {
             }),
             ZERO_BYTES
         );
-        
+
         uint256 initialInsurancePool = hook.insurancePool(poolId);
-        
+
         // Perform a swap to collect premiums
         swapRouter.swap(
             key,
@@ -299,18 +280,15 @@ contract ILInsuranceHookRealTest is Test {
                 amountSpecified: 100e18,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
             }),
-            PoolSwapTest.TestSettings({
-                takeClaims: false,
-                settleUsingBurn: false
-            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
             ZERO_BYTES
         );
-        
+
         uint256 finalInsurancePool = hook.insurancePool(poolId);
-        
+
         // Insurance pool should have grown from premium collection
         assertGt(finalInsurancePool, initialInsurancePool, "Insurance pool should grow from premiums");
-        
+
         console.log("Premium collection:");
         console.log("  Initial insurance pool:", initialInsurancePool);
         console.log("  Final insurance pool:", finalInsurancePool);
@@ -329,9 +307,9 @@ contract ILInsuranceHookRealTest is Test {
             }),
             ZERO_BYTES
         );
-        
+
         // 2. Collect some premiums through swaps
-        for (uint i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < 5; i++) {
             swapRouter.swap(
                 key,
                 IPoolManager.SwapParams({
@@ -339,17 +317,14 @@ contract ILInsuranceHookRealTest is Test {
                     amountSpecified: 50e18,
                     sqrtPriceLimitX96: i % 2 == 0 ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
                 }),
-                PoolSwapTest.TestSettings({
-                    takeClaims: false,
-                    settleUsingBurn: false
-                }),
+                PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
                 ZERO_BYTES
             );
         }
-        
+
         uint256 insurancePoolBalance = hook.insurancePool(poolId);
         console.log("Insurance pool after swaps:", insurancePoolBalance);
-        
+
         // 3. Create significant price movement
         swapRouter.swap(
             key,
@@ -358,16 +333,13 @@ contract ILInsuranceHookRealTest is Test {
                 amountSpecified: -500e18, // Large swap
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
             }),
-            PoolSwapTest.TestSettings({
-                takeClaims: false,
-                settleUsingBurn: false
-            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
             ZERO_BYTES
         );
-        
+
         // 4. Remove liquidity to trigger IL calculation and potential payout
         uint256 balanceBefore = hook.insurancePool(poolId);
-        
+
         modifyLiquidityRouter.modifyLiquidity(
             key,
             IPoolManager.ModifyLiquidityParams({
@@ -378,9 +350,9 @@ contract ILInsuranceHookRealTest is Test {
             }),
             ZERO_BYTES
         );
-        
+
         uint256 balanceAfter = hook.insurancePool(poolId);
-        
+
         // Check if payout occurred
         if (balanceAfter < balanceBefore) {
             console.log("IL compensation paid out!");
@@ -388,9 +360,9 @@ contract ILInsuranceHookRealTest is Test {
         } else {
             console.log("No IL compensation needed");
         }
-        
+
         // Position should be inactive after full removal
-        (, , , , bool isActive) = hook.lpPositions(poolId, address(modifyLiquidityRouter));
+        (,,,, bool isActive) = hook.lpPositions(poolId, address(modifyLiquidityRouter));
         assertFalse(isActive, "Position should be inactive after full removal");
     }
 }
@@ -401,27 +373,27 @@ contract MockERC20 {
     string public symbol;
     uint8 public decimals = 18;
     uint256 public totalSupply;
-    
+
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
-    
+
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
-    
+
     constructor(string memory _name, string memory _symbol) {
         name = _name;
         symbol = _symbol;
-        totalSupply = 1000000 * 10**decimals;
+        totalSupply = 1000000 * 10 ** decimals;
         balanceOf[msg.sender] = totalSupply;
     }
-    
+
     function transfer(address to, uint256 amount) external returns (bool) {
         balanceOf[msg.sender] -= amount;
         balanceOf[to] += amount;
         emit Transfer(msg.sender, to, amount);
         return true;
     }
-    
+
     function transferFrom(address from, address to, uint256 amount) external returns (bool) {
         allowance[from][msg.sender] -= amount;
         balanceOf[from] -= amount;
@@ -429,7 +401,7 @@ contract MockERC20 {
         emit Transfer(from, to, amount);
         return true;
     }
-    
+
     function approve(address spender, uint256 amount) external returns (bool) {
         allowance[msg.sender][spender] = amount;
         emit Approval(msg.sender, spender, amount);

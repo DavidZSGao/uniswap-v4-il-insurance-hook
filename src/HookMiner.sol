@@ -15,12 +15,10 @@ contract HookMiner {
     uint160 constant BEFORE_ADD_LIQUIDITY_FLAG = 1 << 11;
     uint160 constant BEFORE_REMOVE_LIQUIDITY_FLAG = 1 << 9;
     uint160 constant BEFORE_SWAP_FLAG = 1 << 7;
-    
+
     // Combined flags for our hook
-    uint160 constant REQUIRED_FLAGS = BEFORE_INITIALIZE_FLAG | 
-                                      BEFORE_ADD_LIQUIDITY_FLAG | 
-                                      BEFORE_REMOVE_LIQUIDITY_FLAG | 
-                                      BEFORE_SWAP_FLAG;
+    uint160 constant REQUIRED_FLAGS =
+        BEFORE_INITIALIZE_FLAG | BEFORE_ADD_LIQUIDITY_FLAG | BEFORE_REMOVE_LIQUIDITY_FLAG | BEFORE_SWAP_FLAG;
 
     /**
      * @notice Compute the address for a hook deployment with given salt
@@ -29,24 +27,13 @@ contract HookMiner {
      * @param creationCode The creation code of the hook contract
      * @return hookAddress The computed address
      */
-    function computeHookAddress(
-        address deployer,
-        bytes32 salt,
-        bytes memory creationCode
-    ) external pure returns (address hookAddress) {
+    function computeHookAddress(address deployer, bytes32 salt, bytes memory creationCode)
+        external
+        pure
+        returns (address hookAddress)
+    {
         hookAddress = address(
-            uint160(
-                uint256(
-                    keccak256(
-                        abi.encodePacked(
-                            bytes1(0xff),
-                            deployer,
-                            salt,
-                            keccak256(creationCode)
-                        )
-                    )
-                )
-            )
+            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), deployer, salt, keccak256(creationCode)))))
         );
     }
 
@@ -71,35 +58,23 @@ contract HookMiner {
      * @return salt The found salt
      * @return hookAddress The computed hook address
      */
-    function mineSalt(
-        address deployer,
-        bytes memory creationCode,
-        uint256 startSalt,
-        uint256 maxIterations
-    ) external pure returns (bytes32 salt, address hookAddress) {
+    function mineSalt(address deployer, bytes memory creationCode, uint256 startSalt, uint256 maxIterations)
+        external
+        pure
+        returns (bytes32 salt, address hookAddress)
+    {
         for (uint256 i = 0; i < maxIterations; i++) {
             salt = bytes32(startSalt + i);
             hookAddress = address(
-                uint160(
-                    uint256(
-                        keccak256(
-                            abi.encodePacked(
-                                bytes1(0xff),
-                                deployer,
-                                salt,
-                                keccak256(creationCode)
-                            )
-                        )
-                    )
-                )
+                uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), deployer, salt, keccak256(creationCode)))))
             );
-            
+
             uint160 ALL_HOOK_MASK = uint160((1 << 14) - 1);
             if ((uint160(hookAddress) & ALL_HOOK_MASK) == REQUIRED_FLAGS) {
                 return (salt, hookAddress);
             }
         }
-        
+
         revert("Salt not found");
     }
 }
