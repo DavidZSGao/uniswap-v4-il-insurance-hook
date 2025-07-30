@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Gaozhesi
 // IL Insurance Hook for Uniswap V4 - Original Implementation
+// Created: July 2025
 pragma solidity ^0.8.26;
 
 import {IHooks} from "v4-core/interfaces/IHooks.sol";

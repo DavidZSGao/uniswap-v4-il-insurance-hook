@@ -7,7 +7,7 @@ A production-ready, mathematically accurate hook that provides automatic IL insu
 
 **Author**: Gaozhesi  
 **License**: MIT License  
-**Development Period**: January 2025  
+**Development Period**: July 2025  
 **Status**: Production-Ready (Zero Compiler Warnings)
 
 ## ✅ **Verification of Originality**
@@ -134,14 +134,14 @@ This open-source contribution provides:
 ## 📞 **Contact & Attribution**
 
 **Author**: Gaozhesi  
-**Repository**: [Your GitHub Repository URL]  
+**Repository**: https://github.com/DavidZSGao/uniswap-v4-il-insurance-hook  
 **License**: MIT License  
 **Year**: 2025
 
 **Citation**: If you use this work, please cite as:
 ```
 Gaozhesi. (2025). Uniswap V4 Impermanent Loss Insurance Hook. 
-GitHub repository: [Your Repository URL]
+GitHub repository: https://github.com/DavidZSGao/uniswap-v4-il-insurance-hook
 ```
 
 ---

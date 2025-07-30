@@ -210,7 +210,7 @@ fork_block_number = 17100000
 ## 👨‍💻 Authorship
 
 **Original Author**: Gaozhesi  
-**Development Period**: January 2025  
+**Development Period**: July 2025  
 **License**: MIT License
 
 This IL Insurance Hook was designed and implemented from scratch as an original contribution to the Uniswap V4 ecosystem. The implementation includes:

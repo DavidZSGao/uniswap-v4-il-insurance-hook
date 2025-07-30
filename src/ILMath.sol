@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Gaozhesi
 // IL Math Library - Original Implementation
+// Created: July 2025
 pragma solidity ^0.8.26;
 
 /**
